@@ -28,7 +28,8 @@ class FactoolClientNode(PossionSourceClientNode):
         name: str,
         log_fname: str,
         rate: float = 0.25,
-        log_interval: float = 1
+        log_interval: float = 1,
+        send_length: float = 720
     ) -> None:
 
         queries: list[str] = []
@@ -52,7 +53,8 @@ class FactoolClientNode(PossionSourceClientNode):
             name=name,
             log_fname=log_fname,
             rate=rate,
-            log_interval=log_interval
+            log_interval=log_interval,
+            send_length=send_length
         )
 
     def _get_next_request(

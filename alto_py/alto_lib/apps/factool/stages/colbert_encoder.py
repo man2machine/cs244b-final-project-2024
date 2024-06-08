@@ -249,8 +249,6 @@ async def main(
 
     colbert_processor.warm_up()
 
-    h = {}
-
     logger.debug("ColBERT encoder stage ready")
     stage_comm.signal_instance_ready()
 
@@ -265,10 +263,6 @@ async def main(
             )
 
             for item in items:
-                key = (item.user_request_id, item.message.claim_id)
-                if key in h:
-                    breakpoint()
-                h[key] = item
                 debug_log.update_stage_queue_in((item.user_request_id, item.message.claim_id, item.message.question_id))
             await colbert_processor.add_requests(items)
 

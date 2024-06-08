@@ -30,6 +30,8 @@ from alto_lib.core.async_utils import AsyncConcurrentProcessor
 DEFAULT_LOG_DIR: str = get_rel_pkg_path("logs/")
 os.makedirs(DEFAULT_LOG_DIR, exist_ok=True)
 
+DETAILED_LOGS: bool = False
+
 
 @final
 @dataclass(frozen=True, slots=True)
@@ -192,6 +194,8 @@ class AppClientNode:
     _log: AppClientNodeLogger
     _log_interval: float
 
+    _send_length: float | None
+
     _ready: bool
     _app_started: bool
     _stop: bool
@@ -211,7 +215,8 @@ class AppClientNode:
         response_recv_address: IPv4Address,
         name: str,
         log_fname: str,
-        log_interval: float = 1
+        log_interval: float = 1,
+        send_length: float | None = None
     ) -> None:
 
         self.name = name
@@ -228,6 +233,8 @@ class AppClientNode:
 
         self._log = AppClientNodeLogger(log_fname, log_interval=log_interval)
         self._log_interval = log_interval
+
+        self._send_length = send_length
 
         self._ready = False
         self._app_started = False
@@ -358,6 +365,8 @@ class AppClientNode:
 
         self._requests_start_ev.wait()
 
+        start_time = system_time()
+
         while True:
             if not self._requests_finished_ev.is_set():
                 loop_time = system_time()
@@ -368,6 +377,10 @@ class AppClientNode:
                 self._responses_finished_ev.wait()
 
             self._log.update_log()
+
+            if self._send_length is not None:
+                if (system_time() - start_time) > self._send_length:
+                    self.set_requests_finished()
 
             if self._stop:
                 break
@@ -725,7 +738,8 @@ class UniformSourceClientNode(AppClientNode):
         name: str,
         log_fname: str,
         rate: float = 1,
-        log_interval: float = 1
+        log_interval: float = 1,
+        send_length: float | None = None
     ) -> None:
 
         super().__init__(
@@ -734,7 +748,8 @@ class UniformSourceClientNode(AppClientNode):
             response_recv_address=response_recv_address,
             name=name,
             log_fname=log_fname,
-            log_interval=log_interval
+            log_interval=log_interval,
+            send_length=send_length
         )
 
         self._rate = rate
@@ -761,6 +776,7 @@ class PossionSourceClientNode(AppClientNode):
         log_fname: str,
         rate: float = 1,
         log_interval: float = 1,
+        send_length: float | None = None,
         rng: np.random.Generator | None = None
     ) -> None:
 
@@ -770,7 +786,8 @@ class PossionSourceClientNode(AppClientNode):
             response_recv_address=response_recv_address,
             name=name,
             log_fname=log_fname,
-            log_interval=log_interval
+            log_interval=log_interval,
+            send_length=send_length
         )
 
         self._rate = rate
@@ -839,6 +856,9 @@ class InstanceComputeLatencyLogger:
         self: Self
     ) -> None:
 
+        if not DETAILED_LOGS:
+            return
+
         data = {
             'instance_name': self._instance_name,
         }
@@ -850,6 +870,9 @@ class InstanceComputeLatencyLogger:
     def log_counts(
         self: Self
     ) -> None:
+
+        if not DETAILED_LOGS:
+            return
 
         current_time = system_time()
 
@@ -880,19 +903,21 @@ class InstanceComputeLatencyLogger:
         key: Hashable
     ) -> None:
 
+        if not DETAILED_LOGS:
+            return
+
         current_time = system_time()
         self._lock.acquire()
-        # if key in self._stage_in_times:
-        #     breakpoint()
         self._stage_in_times[key] = current_time
-        # if key in self._stage_out_min_times:
-        #     breakpoint()
         self._lock.release()
 
     def update_stage_queue_out(
         self: Self,
         key: Hashable
     ) -> None:
+
+        if not DETAILED_LOGS:
+            return
 
         current_time = system_time()
 
@@ -906,14 +931,15 @@ class InstanceComputeLatencyLogger:
             self._stage_out_max_times.get(key, -float('inf'))
         )
         self._stage_out_num_times[key] = self._stage_out_num_times.get(key, 0) + 1
-        # if (current_time - self._stage_in_times[key]) < 0:
-        #     breakpoint()
         self._lock.release()
 
     def update_log(
         self: Self,
         force: bool = False
     ) -> None:
+
+        if not DETAILED_LOGS:
+            return
 
         if force or (system_time() - self._last_log_write_time > self._log_interval):
             self._last_log_write_time = system_time()
@@ -969,6 +995,9 @@ class InstanceQueueLatencyLogger:
         self: Self
     ) -> None:
 
+        if not DETAILED_LOGS:
+            return
+
         data = {
             'instance_name': self._instance_name,
             'item_type_name': self._item_type_name
@@ -981,6 +1010,9 @@ class InstanceQueueLatencyLogger:
     def log_counts(
         self: Self
     ) -> None:
+
+        if not DETAILED_LOGS:
+            return
 
         current_time = system_time()
 
@@ -997,6 +1029,9 @@ class InstanceQueueLatencyLogger:
         msg: bytes
     ) -> bytes:
 
+        if not DETAILED_LOGS:
+            return msg
+
         current_time = system_time()
         buf = struct.pack('d', current_time) + msg
 
@@ -1006,6 +1041,9 @@ class InstanceQueueLatencyLogger:
         self: Self,
         buf: bytes
     ) -> bytes:
+
+        if not DETAILED_LOGS:
+            return buf
 
         current_time = system_time()
         send_time, msg = struct.unpack('d', buf[:8])[0], buf[8:]
@@ -1017,6 +1055,9 @@ class InstanceQueueLatencyLogger:
         self: Self,
         force: bool = False
     ) -> None:
+
+        if not DETAILED_LOGS:
+            return
 
         if force or (system_time() - self._last_log_write_time > self._log_interval):
             self._last_log_write_time = system_time()

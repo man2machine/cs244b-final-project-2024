@@ -318,8 +318,52 @@ class Word(_SeparatorStringSplitter):
 
 
 @final
+class RawTextPipe(BytesSerializable):
+    @property
+    def fininished(
+        self: Self
+    ) -> bool:
+
+        return NotImplemented
+
+    def read_batches(
+        self: Self
+    ) -> AsyncIterator[str]:
+
+        return NotImplemented
+
+    def write(
+        self: Self,
+        data: str
+    ) -> None:
+
+        pass
+
+    def to_bytes(
+        self: Self
+    ) -> bytes:
+
+        return NotImplemented
+
+    @classmethod
+    def from_bytes(
+        cls: type[Self],
+        buf: bytes
+    ) -> Self:
+
+        return NotImplemented
+
+
+@final
 class LMTextPipe(Generic[SplitLevelAT], BytesSerializable):
     _splitter: SplitLevelAT
+
+    @property
+    def fininished(
+        self: Self
+    ) -> bool:
+
+        return NotImplemented
 
     async def to_str(
         self: Self
@@ -391,8 +435,8 @@ class Stage(metaclass=abc.ABCMeta):
 
     def lm_generate(
         self: Self,
-        system_prompt: str,
-        user_prompt: str
+        system_prompt: str | LMTextPipe | RawTextPipe,
+        user_prompt: str | LMTextPipe | RawTextPipe
     ) -> LMTextPipe[FullText]:
 
         return NotImplemented
@@ -591,14 +635,14 @@ def select(
 
 def apply(
     func: Callable[[SerAT], SerBT],
-    inputs: StageOutput[SerAT]
+    input_data: StageOutput[SerAT]
 ) -> StageOutput[SerBT]:
 
     return NotImplemented
 
 
 def split_text(
-    input: StageOutput[LMTextPipe],
+    input_text: StageOutput[LMTextPipe],
     split_level: type[SplitLevelT]
 ) -> StageOutput[Stream[LMTextPipe[SplitLevelT]]]:
 

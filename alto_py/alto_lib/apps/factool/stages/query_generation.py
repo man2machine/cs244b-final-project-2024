@@ -81,6 +81,8 @@ class GenerateProcessor:
 
         all_text = data.completion_output.text
         all_text = all_text.replace("<|im_end|>", "")
+        while all_text and ((all_text[-1] == " ") or (all_text[-1] == "\n")):
+            all_text = all_text[:-1]
 
         # region - parse and send query tokens
         if vllm_request_id in self._next_query_token_start_indices:

@@ -241,6 +241,8 @@ class LLMGeneratorAsync:
                 await coro
             else:
                 callback_func(callback_input)
+            if callback_input.stream_finished:
+                break
 
         assert stream.finished
         if completion_output and LOG_LLM_OUTPUT:
